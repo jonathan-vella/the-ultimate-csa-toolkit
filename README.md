@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&height=220&color=0:121212,50:0078D4,100:00B7C3&text=Azure%20Architect%20Toolbox&fontSize=48&fontColor=FFFFFF&fontAlignY=38&desc=Architectural%20Engineering%20at%20Scale&descAlignY=58" width="100%" />
+  <img src="https://capsule-render.vercel.app/api?type=waving&height=220&color=0:121212,50:0078D4,100:00B7C3&text=The%20Ultimate%20CSA%20Toolkit&fontSize=48&fontColor=FFFFFF&fontAlignY=38&desc=Architectural%20Engineering%20at%20Scale&descAlignY=58" width="100%" />
 </p>
 
 <p align="center">
@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <strong>The ultimate Swiss Army Knife for the modern Azure Infrastructure Architect.</strong>
+  <strong>The ultimate toolkit for the modern Cloud Solution Architect.</strong>
 </p>
 
 <p align="center">
@@ -16,12 +16,12 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/license/jonathan-vella/azure-architect-toolbox?style=flat-square&color=blue" />
-  <img src="https://img.shields.io/github/stars/jonathan-vella/azure-architect-toolbox?style=flat-square" />
-  <img src="https://img.shields.io/github/forks/jonathan-vella/azure-architect-toolbox?style=flat-square" />
-  <img src="https://img.shields.io/github/last-commit/jonathan-vella/azure-architect-toolbox?style=flat-square" />
+  <img src="https://img.shields.io/github/license/jonathan-vella/the-ultimate-csa-toolkit?style=flat-square&color=blue" />
+  <img src="https://img.shields.io/github/stars/jonathan-vella/the-ultimate-csa-toolkit?style=flat-square" />
+  <img src="https://img.shields.io/github/forks/jonathan-vella/the-ultimate-csa-toolkit?style=flat-square" />
+  <img src="https://img.shields.io/github/last-commit/jonathan-vella/the-ultimate-csa-toolkit?style=flat-square" />
   <br />
-  <a href="https://github.com/jonathan-vella/azure-architect-toolbox/fork">
+  <a href="https://github.com/jonathan-vella/the-ultimate-csa-toolkit/fork">
     <img src="https://img.shields.io/badge/Fork-Now-orange?style=flat-square&logo=github" />
   </a>
 </p>

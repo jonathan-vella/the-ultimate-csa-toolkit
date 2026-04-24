@@ -1,4 +1,4 @@
-# Azure Architect Toolbox - AI Agent Instructions
+# The Ultimate CSA Toolkit - AI Agent Instructions
 
 ## Project Guidelines
 
