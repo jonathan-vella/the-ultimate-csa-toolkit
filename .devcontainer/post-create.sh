@@ -53,7 +53,7 @@ step_fail() {
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo " 🚀 Agentic InfraOps — Dev Container Setup"
+echo " 🚀 The Ultimate CSA Toolkit — Dev Container Setup"
 echo "    $TOTAL_STEPS steps · $(date '+%H:%M:%S') · $OS/$ARCH ($ARCH_LABEL)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
@@ -107,9 +107,6 @@ step_done "Git configured, cache dirs created"
 step_start "🐍" "Installing Python packages..."
 export PATH="${HOME}/.local/bin:${PATH}"
 
-# Ensure pip is up to date first as requested
-python3 -m pip install --upgrade pip --quiet
-
 if command -v uv &> /dev/null; then
     mkdir -p "${HOME}/.cache/uv" 2>/dev/null || true
     chmod -R 755 "${HOME}/.cache/uv" 2>/dev/null || true
@@ -146,7 +143,7 @@ pwsh -NoProfile -Command "
 
 # ─── Step 6: Terraform security/lint tools ───────────────────────────────────
 
-step_start "🧩" "Installing Terraform lint/security tools (tflint, tfsec)..."
+step_start "🧩" "Installing Terraform lint/security tools (tflint, trivy)..."
 INSTALL_WARN=0
 
 if command -v tflint >/dev/null 2>&1; then
@@ -161,14 +158,14 @@ else
     fi
 fi
 
-if command -v tfsec >/dev/null 2>&1; then
-    echo "        tfsec already installed ($(tfsec --version 2>/dev/null | head -n1))"
+if command -v trivy >/dev/null 2>&1; then
+    echo "        trivy already installed ($(trivy --version 2>/dev/null | head -n1))"
 else
-    echo "        Detecting architecture for tfsec: $ARCH_LABEL"
-    if curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | sudo bash >/dev/null 2>&1; then
-        echo "        tfsec installed"
+    echo "        Installing trivy (arch: $ARCH_LABEL)"
+    if curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin >/dev/null 2>&1; then
+        echo "        trivy installed"
     else
-        echo "        tfsec installation failed (arch: $ARCH_LABEL)"
+        echo "        trivy installation failed (arch: $ARCH_LABEL)"
         INSTALL_WARN=1
     fi
 fi
@@ -193,7 +190,7 @@ fi
 
 step_start "📦" "Verifying Python dependencies..."
 if [ -f "${PWD}/requirements.txt" ]; then
-    pip install --quiet -r "${PWD}/requirements.txt"
+    uv pip install --system --quiet -r "${PWD}/requirements.txt"
     step_done "Python dependencies installed from requirements.txt"
 else
     step_done "No requirements.txt found"
@@ -221,7 +218,7 @@ printf "        %-15s %s\n" "Python:" "$(python3 --version 2>/dev/null || echo '
 printf "        %-15s %s\n" "Node.js:" "$(node --version 2>/dev/null || echo '❌ not installed')"
 printf "        %-15s %s\n" "Terraform:" "$(terraform version -json 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('terraform_version','unknown'))" || echo '❌ not installed')"
 printf "        %-15s %s\n" "tflint:" "$(tflint --version 2>/dev/null | head -n1 || echo '❌ not installed')"
-printf "        %-15s %s\n" "tfsec:" "$(tfsec --version 2>/dev/null | head -n1 || echo '❌ not installed')"
+printf "        %-15s %s\n" "trivy:" "$(trivy --version 2>/dev/null | head -n1 || echo '❌ not installed')"
 printf "        %-15s %s\n" "GitHub CLI:" "$(gh --version 2>/dev/null | head -n1 || echo '❌ not installed')"
 printf "        %-15s %s\n" "uv:" "$(uv --version 2>/dev/null || echo '❌ not installed')"
 printf "        %-15s %s\n" "Pandoc:" "$(pandoc --version 2>/dev/null | head -n1 || echo '❌ not installed')"

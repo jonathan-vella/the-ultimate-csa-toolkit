@@ -16,7 +16,7 @@
 - **Pre-installed Tools**:
   - **Azure CLI**: Version `latest` via devcontainer feature. Includes `bicep`.
   - **Azure PowerShell**: Latest `Az` module via PowerShell 7+.
-  - **Python 3.13**: Managed via `uv` (fast package manager).
+  - **Python (latest)**: Managed via `uv` (fast package manager).
   - **Node.js 22+ (LTS)**: Core for modern web/docs tooling.
   - **Pandoc**: Universal document converter with Mermaid CLI support.
   - **Playwright**: Included for high-fidelity rendering of browser-based diagrams.
@@ -49,4 +49,4 @@ To verify the environment is ready for specific tasks, run these commands:
 1. **Python Diagrams**: Primary tool for architectural diagrams as code. Uses Graphviz.
 2. **Azure Integration**: Dual-support for CLI and PowerShell (ARM64/x64 compatible).
 3. **Document Conversion**: Pandoc for converting Markdown to various formats.
-4. **General Scripting**: Python 3.12 for automation.
+4. **General Scripting**: Python (latest stable) for automation.

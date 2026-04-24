@@ -18,10 +18,6 @@ echo ""
 # Track failures
 FAILURES=()
 
-# Update pip first
-echo "📦 Updating pip..."
-python3 -m pip install --upgrade pip --quiet
-
 # Update Azure CLI
 echo "📦 Checking Azure CLI..."
 CURRENT_AZ=$(az version --query '"azure-cli"' -o tsv 2>/dev/null || echo "unknown")
@@ -38,7 +34,7 @@ fi
 
 # Update Python packages
 echo "📦 Updating Python packages..."
-if pip3 install --upgrade --quiet --break-system-packages checkov diagrams 2>/dev/null; then
+if uv pip install --system --upgrade --quiet checkov diagrams 2>/dev/null; then
     echo "   ✅ Python packages updated (checkov, diagrams)"
 else
     echo "   ⚠️  Python package updates had issues"
@@ -63,13 +59,13 @@ else
     FAILURES+=("tflint")
 fi
 
-# Update tfsec
-echo "📦 Updating tfsec..."
-if curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | sudo bash >/dev/null 2>&1; then
-    echo "   ✅ tfsec updated"
+# Update trivy
+echo "📦 Updating trivy..."
+if curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin >/dev/null 2>&1; then
+    echo "   ✅ trivy updated"
 else
-    echo "   ⚠️  tfsec update had issues"
-    FAILURES+=("tfsec")
+    echo "   ⚠️  trivy update had issues"
+    FAILURES+=("trivy")
 fi
 
 # Summary
@@ -92,6 +88,6 @@ printf "   %-15s %s\n" "Azure CLI:" "$(az version --query '\"azure-cli\"' -o tsv
 printf "   %-15s %s\n" "Bicep:" "$(az bicep version 2>/dev/null || echo 'unknown')"
 printf "   %-15s %s\n" "Checkov:" "$(checkov --version 2>/dev/null || echo 'unknown')"
 printf "   %-15s %s\n" "tflint:" "$(tflint --version 2>/dev/null | head -n1 || echo 'unknown')"
-printf "   %-15s %s\n" "tfsec:" "$(tfsec --version 2>/dev/null | head -n1 || echo 'unknown')"
+printf "   %-15s %s\n" "trivy:" "$(trivy --version 2>/dev/null | head -n1 || echo 'unknown')"
 printf "   %-15s %s\n" "Python:" "$(python3 --version 2>/dev/null || echo 'unknown')"
 echo ""
