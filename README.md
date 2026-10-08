@@ -55,6 +55,8 @@
 
 For targeted diagnostics, `smoke-test.sh --without-browsers` checks non-browser workflows only. It is explicitly partial validation, not an adoption pass. Publishing scripts/output folders are local content, not part of this repository's tracked baseline.
 
+For editor acceptance, run `bash .devcontainer/test-editor.sh` in the **VS Code integrated terminal inside the Dev Container**. It reruns the complete automated workflows, prints the configured extension IDs and prompts for manual checks of activation, language tooling, previews, MCP and workspace/cache behavior. Type `PASS` only after exercising each group; any other answer fails acceptance. The script cannot automatically prove extension activation or native execution, and its success depends on those confirmations. Repeat on native ARM64 and native x64; no cloud deployment or credential sharing is needed.
+
 ## 🧰 The Toolbox
 
 | Category     | Tools & Technologies                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
