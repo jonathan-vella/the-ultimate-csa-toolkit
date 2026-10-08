@@ -38,7 +38,7 @@ For individual diagnostics:
 - **Reproducibility**: Declare system/browser dependencies in `.devcontainer/Dockerfile`, binary versions/checksums in the tracked installation files, and language dependencies in tracked manifests/locks. Keep updates coherent and required failures nonzero.
 - **Package routing**: Use `https://packagefeedproxy.microsoft.io/npm/` for npm/pnpm/Yarn/Corepack and `https://packagefeedproxy.microsoft.io/pypi/simple/` for uv, or an approved team-owned feed. Use the newest available stable releases older than seven days, including transitive versions. Update `.npmrc`'s cutoff and run `check-package-age.py` when regenerating locks. Python uses proxy-native `uv sync --locked` with artifact hash verification; replica ingestion dates are not original publication dates. Never configure `ms-feed-*` browse URLs or bypass CFS.
 - **Browser isolation**: Separate Playwright/Puppeteer browser caches. The approved seccomp profile adds only Chromium's clone/setns/unshare permissions to Docker defaults; keep sandboxing enabled. Do not introduce privileged/unconfined containers, broad capabilities or bypass TLS verification.
-- **Acceptance**: Native ARM64 CFS builds and automated workflows pass; native x64 and real editor/extension activation remain open migration gates. Preview acceptance is not vendor certification, and npm advisory findings are not cleared by workflow tests.
+- **Acceptance**: Native ARM64 CFS builds, automated workflows and user-confirmed editor checks pass; native x64 remains an open migration gate. Preview acceptance is not vendor certification, and npm advisory findings are not cleared by workflow tests.
 - **Performance**: Use `uv` for all Python operations as a faster, more modern standard.
 
 ### Project Conventions
