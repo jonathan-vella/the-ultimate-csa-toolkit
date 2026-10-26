@@ -1,0 +1,12 @@
+{
+  "npmRegistry": "https://packagefeedproxy.microsoft.io/npm/",
+  "pythonIndex": "https://packagefeedproxy.microsoft.io/pypi/simple/",
+  "npmArtifactPrefixes": [
+    "https://packagefeedproxy.microsoft.io/npm/",
+    "https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/"
+  ],
+  "pythonArtifactPrefixes": [
+    "https://packagefeedproxy.microsoft.io/pypi/simple/",
+    "https://ms-feed-25.pkgs.visualstudio.com/6f084628-a36d-42cb-934d-057357e379dc/_packaging/49d7402f-07bb-4b18-a9ce-086e6e98a554/pypi/download/"
+  ]
+}
