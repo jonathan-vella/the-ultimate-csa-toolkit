@@ -70,6 +70,11 @@ Use the launcher whenever starting a fresh VS Code process for this project. If 
 > [!NOTE]
 > Package installs use Microsoft's **CFS proxy** by default. Your network also needs the image registry, upstream binary/browser downloads and CFS-returned artifact endpoints. Source checks stop the setup if the selected feeds do not match reviewed locks.
 
+For a separate minimal Windows-to-WSL setup, see the
+[Azure Linux 4 WSL bootstrap](.devcontainer/wsl/README.md). It provisions native
+Azure/GitHub CLIs, Copilot and Bicep, with weekly DNF updates and resumable personal
+dotfiles setup. It does not install this entire dev-container toolchain.
+
 ### Check your environment
 
 Run inside the container:
