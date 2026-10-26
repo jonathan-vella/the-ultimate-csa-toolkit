@@ -1,10 +1,10 @@
 # Windows to Azure Linux WSL bootstrap
 
 This is a small **evaluation/development** setup, not a WSL version of the Dockerfile.
-Azure Linux 4 is a **preview**, not a production recommendation. The initial
-fixed-version implementation completed one core run on existing native x64 WSL.
-The current latest-release implementation has **not** been live-provisioned;
-fresh installation, ARM64 and live dotfiles remain unvalidated.
+Azure Linux 4 is a **preview**, not a production recommendation. The latest-release
+implementation completed a core run and rerun on an existing native x64 WSL
+distribution on 2026-10-26. Fresh installation, ARM64 and live dotfiles remain
+unvalidated.
 
 ## Run next time
 
@@ -209,12 +209,21 @@ actual Microsoft checksum signatures for both image architectures were also
 checked from Windows, using temporary keyrings. That verifies metadata/signatures,
 not installation or native binary compatibility.
 
-The initial live x64 run found and prompted fixes for WSL UTF-16 output and Bash
-stdin dispatch. It verified the previously selected standalone binaries, native
-CLIs and weekly timer, but was stopped before the required rerun when the user
-changed the requirement to latest stable. It does **not** validate this revised
-release-resolution implementation. A future authorized core run plus rerun must
-check effective tools/Bicep entry points, defaults, timer schedule and preservation
-of existing distros/settings. Fresh `.wsl` install, other architecture and dotfiles
-require separate live validation. The full dev-container inventory, Docker/VS Code
-installation, Windows tasks, Azure resources and production hardening are out of scope.
+Real validation on existing native x64 AzureLinux-4 as `jonathan` completed the
+latest-release core bootstrap twice on 2026-10-26. Both runs verified official
+binary hashes; Azure CLI 2.91.0, GitHub CLI 2.103.2 and Bicep 0.48.1 stayed unchanged.
+Copilot's installed bundled version changed from the earlier 1.0.98 to current
+stable 1.0.103 (normal launches already selected a cached 1.0.103).
+
+Native executable paths, both Bicep version entry points, default AzureLinux-4
+and user `jonathan` were confirmed. The effective timer was enabled/active with
+Sunday 06:00 local time, persistence and the vendor's one-hour random delay.
+Account metadata, existing shell/Git profile hashes, WSL configuration, named Azure
+configuration, DNF/timer configuration and installed binary hashes were identical
+across the rerun. Ubuntu-26.04 and docker-desktop remained registered and running.
+No dotfiles installer, global WSL shutdown or distro recreation was performed.
+
+These checks do not establish fresh `.wsl` installation, ARM64 execution, live
+dotfiles, interactive cloud authentication, Azure deployment or a future unattended
+timer firing. The full dev-container inventory, Docker/VS Code installation,
+Windows tasks, Azure resources and production hardening remain out of scope.
