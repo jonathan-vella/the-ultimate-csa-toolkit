@@ -32,6 +32,20 @@ ENV NVM_DIR=/usr/local/share/nvm \
     AZURE_CORE_COLLECT_TELEMETRY=false
 ENV PATH="/opt/csa-toolkit/.venv/bin:/opt/csa-toolkit/node_modules/.bin:/usr/local/share/nvm/current/bin:${PATH}"
 
+ARG CSA_NPM_REGISTRY_HOST_PATH=packagefeedproxy.microsoft.io/npm/
+ARG CSA_PYPI_INDEX_HOST_PATH=packagefeedproxy.microsoft.io/pypi/simple/
+ARG CSA_POWERSHELL_REPOSITORY_URL=https://packagefeedproxy.microsoft.io/powershell/v2
+ENV NPM_CONFIG_REGISTRY="https://${CSA_NPM_REGISTRY_HOST_PATH}" \
+    PNPM_CONFIG_REGISTRY="https://${CSA_NPM_REGISTRY_HOST_PATH}" \
+    COREPACK_NPM_REGISTRY="https://${CSA_NPM_REGISTRY_HOST_PATH}" \
+    YARN_NPM_REGISTRY_SERVER="https://${CSA_NPM_REGISTRY_HOST_PATH}" \
+    UV_DEFAULT_INDEX="https://${CSA_PYPI_INDEX_HOST_PATH}" \
+    UV_INDEX_URL="https://${CSA_PYPI_INDEX_HOST_PATH}" \
+    PIP_INDEX_URL="https://${CSA_PYPI_INDEX_HOST_PATH}" \
+    CSA_POWERSHELL_REPOSITORY_URL="${CSA_POWERSHELL_REPOSITORY_URL:-https://packagefeedproxy.microsoft.io/powershell/v2}"
+COPY package_sources.py /opt/csa-toolkit/
+RUN python3 /opt/csa-toolkit/package_sources.py --config-only
+
 COPY tool-versions.env releases.sha256 install-tools.sh install-az-modules.ps1 /opt/csa-toolkit/
 RUN bash /opt/csa-toolkit/install-tools.sh "$TARGETARCH"
 RUN DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2SUPPORT=0 \
@@ -39,14 +53,10 @@ RUN DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2SUPPORT=0 \
 
 FROM tools AS toolkit
 ENV COREPACK_HOME=/home/vscode/.cache/corepack COREPACK_DEFAULT_TO_LATEST=0
-ENV npm_config_registry=https://packagefeedproxy.microsoft.io/npm/ \
-    PNPM_CONFIG_REGISTRY=https://packagefeedproxy.microsoft.io/npm/ \
-    COREPACK_NPM_REGISTRY=https://packagefeedproxy.microsoft.io/npm/ \
-    YARN_NPM_REGISTRY_SERVER=https://packagefeedproxy.microsoft.io/npm/ \
-    UV_DEFAULT_INDEX=https://packagefeedproxy.microsoft.io/pypi/simple/
-COPY pyproject.toml uv.lock package.json package-lock.json .npmrc /opt/csa-toolkit/
+COPY pyproject.toml uv.lock package.json package-lock.json .npmrc package-sources.json /opt/csa-toolkit/
 WORKDIR /opt/csa-toolkit
-RUN source tool-versions.env \
+RUN python3 package_sources.py \
+    && source tool-versions.env \
     && uv python install "$PYTHON_VERSION" \
     && uv sync --locked --no-dev --python "$PYTHON_VERSION" \
     && npm ci --ignore-scripts \

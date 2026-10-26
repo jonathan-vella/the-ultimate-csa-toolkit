@@ -2,6 +2,7 @@
 set -euo pipefail
 trap 'printf "Dev Container initialization failed at line %s\n" "$LINENO" >&2' ERR
 
+python /opt/csa-toolkit/package_sources.py
 mkdir -p "$HOME/.cache/uv" "$HOME/.config/gh"
 # These two named volumes can retain an earlier container UID; never change the host Azure bind mount.
 sudo chown -R "$(id -u):$(id -g)" "$HOME/.cache/uv" "$HOME/.config/gh"

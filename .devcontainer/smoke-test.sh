@@ -4,6 +4,7 @@ trap 'printf "Smoke test failed at line %s; adoption is not complete.\n" "$LINEN
 mode=${1:-full}
 case "$mode" in full|--without-browsers) ;; *) echo 'Usage: smoke-test.sh [--without-browsers]' >&2; exit 2 ;; esac
 [[ $(id -u) != 0 ]] || { echo 'Run smoke tests as the Dev Container user, not root.' >&2; exit 1; }
+python /opt/csa-toolkit/package_sources.py
 source /opt/csa-toolkit/tool-versions.env
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT

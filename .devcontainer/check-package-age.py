@@ -10,6 +10,8 @@ import tomllib
 from urllib.parse import quote
 from urllib.request import urlopen
 
+from package_sources import check_locks, selected_sources
+
 
 ROOT = Path(__file__).resolve().parent
 
@@ -24,7 +26,7 @@ def check(task, cutoff):
     errors = []
     if ecosystem == "npm":
         data = metadata(
-            f"https://packagefeedproxy.microsoft.io/npm/{quote(name, safe='')}"
+            f"{selected_sources()[0].rstrip('/')}/{quote(name, safe='')}"
         )
     else:
         # Replica ingestion timestamps are not original PyPI publication dates.
@@ -42,7 +44,7 @@ def check(task, cutoff):
         if ecosystem == "npm":
             timestamp = data.get("time", {}).get(version)
             if version not in data.get("versions", {}) or not timestamp:
-                errors.append(f"{label}: unavailable CFS version or publication date")
+                errors.append(f"{label}: unavailable feed version or publication date")
                 continue
         else:
             files = data.get("releases", {}).get(version, [])
@@ -62,6 +64,7 @@ def check(task, cutoff):
 
 
 def main():
+    check_locks()
     config = dict(
         line.split("=", 1)
         for line in (ROOT / ".npmrc").read_text().splitlines()

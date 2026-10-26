@@ -2,7 +2,12 @@
   "name": "The Ultimate CSA Toolkit",
   "build": {
     "dockerfile": "Dockerfile",
-    "context": "."
+    "context": ".",
+    "args": {
+      "CSA_NPM_REGISTRY_HOST_PATH": "${localEnv:CSA_NPM_REGISTRY_HOST_PATH:packagefeedproxy.microsoft.io/npm/}",
+      "CSA_PYPI_INDEX_HOST_PATH": "${localEnv:CSA_PYPI_INDEX_HOST_PATH:packagefeedproxy.microsoft.io/pypi/simple/}",
+      "CSA_POWERSHELL_REPOSITORY_URL": "${localEnv:CSA_POWERSHELL_REPOSITORY_URL}"
+    }
   },
   "init": true,
   "runArgs": [
@@ -19,7 +24,15 @@
   "containerEnv": {
     "PYTHONDONTWRITEBYTECODE": "1",
     "PYTHONUNBUFFERED": "1",
-    "UV_CACHE_DIR": "/home/vscode/.cache/uv"
+    "UV_CACHE_DIR": "/home/vscode/.cache/uv",
+    "NPM_CONFIG_REGISTRY": "https://${localEnv:CSA_NPM_REGISTRY_HOST_PATH:packagefeedproxy.microsoft.io/npm/}",
+    "PNPM_CONFIG_REGISTRY": "https://${localEnv:CSA_NPM_REGISTRY_HOST_PATH:packagefeedproxy.microsoft.io/npm/}",
+    "COREPACK_NPM_REGISTRY": "https://${localEnv:CSA_NPM_REGISTRY_HOST_PATH:packagefeedproxy.microsoft.io/npm/}",
+    "YARN_NPM_REGISTRY_SERVER": "https://${localEnv:CSA_NPM_REGISTRY_HOST_PATH:packagefeedproxy.microsoft.io/npm/}",
+    "UV_DEFAULT_INDEX": "https://${localEnv:CSA_PYPI_INDEX_HOST_PATH:packagefeedproxy.microsoft.io/pypi/simple/}",
+    "UV_INDEX_URL": "https://${localEnv:CSA_PYPI_INDEX_HOST_PATH:packagefeedproxy.microsoft.io/pypi/simple/}",
+    "PIP_INDEX_URL": "https://${localEnv:CSA_PYPI_INDEX_HOST_PATH:packagefeedproxy.microsoft.io/pypi/simple/}",
+    "CSA_POWERSHELL_REPOSITORY_URL": "${localEnv:CSA_POWERSHELL_REPOSITORY_URL}"
   },
   "remoteEnv": {
     "AZURE_DEFAULTS_LOCATION": "swedencentral"
