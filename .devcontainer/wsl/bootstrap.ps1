@@ -51,7 +51,7 @@ function Assert-Prerequisites {
         if (Test-Path $key) { throw 'Windows reports a pending reboot. Reboot explicitly, then rerun.' }
     }
     try {
-        $versionOutput = (Invoke-Wsl -Arguments @('--version')) -join "`n"
+        $versionOutput = ((Invoke-Wsl -Arguments @('--version')) -join "`n") -replace "`0", ''
     } catch {
         throw "Modern WSL is unavailable. Run wsl --update yourself (or elevated wsl --install --no-distribution if missing), reboot if requested, then rerun. $_"
     }
@@ -73,15 +73,80 @@ function Get-HostArchitecture {
     }
 }
 
+function Get-StableRelease {
+    param([string]$Repository, [string]$AssetName)
+    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repository/releases/latest"
+    if ($release.prerelease -or $release.draft -or $release.tag_name -cnotmatch '^v\d+\.\d+\.\d+$') {
+        throw "Expected a stable release from $Repository."
+    }
+    $assets = @($release.assets | Where-Object { $_.name -ceq $AssetName })
+    if ($assets.Count -ne 1 -or $assets[0].digest -cnotmatch '^sha256:([a-f0-9]{64})$') {
+        throw "Missing unique official SHA-256 asset digest: $Repository/$AssetName."
+    }
+    $hash = $Matches[1]
+    $expectedUrl = "https://github.com/$Repository/releases/download/$($release.tag_name)/$AssetName"
+    if ($assets[0].browser_download_url -cne $expectedUrl) { throw 'Unexpected official release asset URL.' }
+    return [pscustomobject]@{ Version = $release.tag_name.Substring(1); Hash = $hash }
+}
+
+function Invoke-Gpg {
+    param([string]$Executable, [string[]]$Arguments)
+    $output = & $Executable @Arguments
+    if ($LASTEXITCODE -ne 0) { throw 'Microsoft image signature/key verification failed; no image was installed.' }
+    return $output
+}
+
+function Assert-ImageSignature {
+    param([string]$Directory, [string]$Checksum, [string]$Signature)
+    $gpg = Get-Command gpg.exe -ErrorAction SilentlyContinue
+    if (-not $gpg) {
+        $gitGpg = Join-Path $env:ProgramFiles 'Git\usr\bin\gpg.exe'
+        if (-not (Test-Path $gitGpg)) { throw 'Fresh image verification requires GnuPG on Windows (for example Git for Windows). Install it explicitly, then rerun.' }
+        $executable = $gitGpg
+    } else { $executable = $gpg.Source }
+    $gpgHome = Join-Path $Directory 'gnupg'
+    New-Item -ItemType Directory -Path $gpgHome | Out-Null
+    $key = Join-Path $gpgHome 'microsoft.asc'
+    Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/microsoft/azurelinux/refs/heads/4.0/base/comps/azurelinux-repos/RPM-GPG-KEY-azurelinux-4.0-primary' -OutFile $key
+    Copy-Item -LiteralPath $Checksum -Destination (Join-Path $gpgHome 'checksum')
+    Copy-Item -LiteralPath $Signature -Destination (Join-Path $gpgHome 'checksum.sig')
+    # Relative names work with both native Windows and Git for Windows GnuPG.
+    Push-Location $gpgHome
+    try {
+        $common = @('--no-options', '--homedir', '.', '--batch', '--no-autostart')
+        $keyInfo = (Invoke-Gpg $executable ($common + @('--with-colons', '--show-keys', 'microsoft.asc'))) -join "`n"
+        $fingerprint = '2BC94FFF7015A5F28F1537AD0CD9FED33135CE90'
+        if ($keyInfo -notmatch "(?m)^fpr:::::::::$fingerprint`:") { throw 'Unexpected Microsoft signing key fingerprint.' }
+        Invoke-Gpg $executable ($common + @('--dearmor', '--output', 'microsoft.gpg', 'microsoft.asc')) | Out-Null
+        $status = (Invoke-Gpg $executable ($common + @('--no-default-keyring', '--keyring', 'microsoft.gpg',
+            '--status-fd', '1', '--verify', 'checksum.sig', 'checksum'))) -join "`n"
+        if ($status -notmatch "(?m)^\[GNUPG:\] VALIDSIG $fingerprint ") {
+            throw 'Checksum was not signed by the trusted Microsoft key.'
+        }
+    } finally {
+        Pop-Location
+    }
+}
+
 function Get-VerifiedImage {
-    param($Download)
+    param([ValidateSet('x64', 'arm64')][string]$Architecture)
     $directory = Join-Path ([IO.Path]::GetTempPath()) ("csa-wsl-" + [guid]::NewGuid())
     New-Item -ItemType Directory -Path $directory | Out-Null
-    $package = Join-Path $directory 'AzureLinux-4.wsl'
+    $imageArch = if ($Architecture -eq 'x64') { 'x86_64' } else { 'aarch64' }
+    $name = "AzureLinux-4.0-$imageArch.wsl"
+    $package = Join-Path $directory $name
     try {
-        Invoke-WebRequest -Uri $Download.imageUrl -OutFile $package
-        if ((Get-FileHash -Algorithm SHA256 $package).Hash -ne $Download.imageSha256) {
-            throw 'WSL image checksum mismatch. No image was installed. Review official signed checksums before updating downloads.json.'
+        $checksum = Join-Path $directory 'checksum'
+        $signature = Join-Path $directory 'checksum.sig'
+        Invoke-WebRequest -Uri "https://aka.ms/azurelinux-4.0-$imageArch-wsl-checksum" -OutFile $checksum
+        Invoke-WebRequest -Uri "https://aka.ms/azurelinux-4.0-$imageArch-wsl-checksum-signature" -OutFile $signature
+        Assert-ImageSignature $directory $checksum $signature
+        $lines = @(Get-Content $checksum | Where-Object { $_ -cmatch "^([a-f0-9]{64})\s+\*?$([regex]::Escape($name))$" })
+        if ($lines.Count -ne 1) { throw 'Missing unique architecture-matched checksum in the signed Microsoft manifest.' }
+        $expected = ($lines[0] -split '\s+')[0]
+        Invoke-WebRequest -Uri "https://aka.ms/azurelinux-4.0-$imageArch.wsl" -OutFile $package
+        if ((Get-FileHash -Algorithm SHA256 $package).Hash -ne $expected) {
+            throw 'WSL image checksum mismatch. No image was installed; retry if Microsoft is publishing a new image.'
         }
         return $package
     } catch {
@@ -94,27 +159,14 @@ function Invoke-Bootstrap {
     if ($LinuxUser -eq 'root') { throw 'Choose a non-root Linux user explicitly.' }
     Assert-Prerequisites
     $arch = Get-HostArchitecture
-    $pins = Get-Content (Join-Path $PSScriptRoot 'downloads.json') -Raw | ConvertFrom-Json
-    $download = $pins.$arch
-    foreach ($hash in @($download.imageSha256, $download.copilotSha256)) {
-        if ($hash -cnotmatch '^[a-f0-9]{64}$') { throw 'Invalid reviewed download checksum.' }
-    }
-    if ($pins.copilotVersion -cnotmatch '^\d+\.\d+\.\d+$' -or
-        [datetimeoffset]$pins.copilotPublishedAt -gt [datetimeoffset]::UtcNow.AddDays(-7)) {
-        throw 'Copilot pin must be a stable release older than seven days.'
-    }
-    $versions = Get-Content (Join-Path $PSScriptRoot '..\tool-versions.env')
-    $bicepVersion = ($versions | Where-Object { $_ -cmatch '^BICEP_VERSION=\d+\.\d+\.\d+$' }) -replace '^BICEP_VERSION=', ''
-    if (@($bicepVersion).Count -ne 1) { throw 'Missing or ambiguous shared Bicep version.' }
-    $hashArch = if ($arch -eq 'x64') { 'amd64' } else { 'arm64' }
-    $checksums = Get-Content (Join-Path $PSScriptRoot '..\releases.sha256')
-    $bicepHash = ($checksums | Where-Object { $_ -cmatch "^[a-f0-9]{64}  bicep-$hashArch$" }) -replace ' .*$', ''
-    if (@($bicepHash).Count -ne 1) { throw 'Missing or ambiguous shared Bicep checksum.' }
+    $bicep = Get-StableRelease 'Azure/bicep' "bicep-linux-$arch"
+    $copilot = Get-StableRelease 'github/copilot-cli' "copilot-linux-$arch.tar.gz"
+    Write-Host "Resolved latest stable Bicep $($bicep.Version), Copilot $($copilot.Version)."
     $helper = Get-Content (Join-Path $PSScriptRoot 'provision.sh') -Raw
     $installed = @((Invoke-Wsl -Arguments @('--list', '--quiet')) |
         ForEach-Object { ($_ -replace "`0", '').Trim() })
     if ($Distro -notin $installed) {
-        $package = Get-VerifiedImage $download
+        $package = Get-VerifiedImage $arch
         try {
             Invoke-Wsl -Arguments @('--install', '--from-file', $package, '--name', $Distro, '--no-launch') | Out-Host
         } finally {
@@ -127,7 +179,7 @@ function Invoke-Bootstrap {
     }
     Invoke-Wsl -Arguments @('-d', $Distro, '-u', 'root', '--exec', '/usr/bin/env', '-i',
         'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin', '/bin/bash', '-s', '--',
-        'system', $LinuxUser, $arch, $bicepVersion, $bicepHash, $pins.copilotVersion, $download.copilotSha256) -InputText $helper | Out-Host
+        'system', $LinuxUser, $arch, $bicep.Version, $bicep.Hash, $copilot.Version, $copilot.Hash) -InputText $helper | Out-Host
     Invoke-Wsl -Arguments @('--manage', $Distro, '--set-default-user', $LinuxUser) | Out-Host
     Invoke-Wsl -Arguments @('--set-default', $Distro) | Out-Host
     if ($ApplyDotfiles) {

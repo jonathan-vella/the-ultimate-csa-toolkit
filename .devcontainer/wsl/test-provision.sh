@@ -58,4 +58,8 @@ status=0
 check test "$status" -eq 20
 check grep -q 'ACTION REQUIRED' "$work/auth.log"
 check test ! -e "$work/home/dotfiles"
+status=0
+bash -s -- invalid < "$(dirname "${BASH_SOURCE[0]}")/provision.sh" > "$work/stdin.log" 2>&1 || status=$?
+check test "$status" -eq 1
+check grep -q 'Expected system or dotfiles phase' "$work/stdin.log"
 printf 'PASS: isolated INI/timer idempotence, preservation, invalid users, binary hash and auth-pending checks.\n'

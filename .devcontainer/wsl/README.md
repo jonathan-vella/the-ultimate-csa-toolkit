@@ -1,8 +1,10 @@
 # Windows to Azure Linux WSL bootstrap
 
 This is a small **evaluation/development** setup, not a WSL version of the Dockerfile.
-Azure Linux 4 is a **preview**, not a production recommendation. Neither native
-x64 nor ARM64 provisioning has been validated by this bootstrap's isolated tests.
+Azure Linux 4 is a **preview**, not a production recommendation. The initial
+fixed-version implementation completed one core run on existing native x64 WSL.
+The current latest-release implementation has **not** been live-provisioned;
+fresh installation, ARM64 and live dotfiles remain unvalidated.
 
 ## Run next time
 
@@ -30,15 +32,21 @@ Prerequisites:
 - `wsl --status` must work. Pending Windows servicing/update reboots stop the
   bootstrap. It never enables Windows features, self-elevates or restarts Windows.
 - HTTPS access to Microsoft's official image/package services, GitHub releases,
-  `cli.github.com` and the Azure Linux native repositories. No npm/pip packages
-  are installed; the repository's CFS language-package routing is unchanged.
+  unauthenticated `api.github.com`, `raw.githubusercontent.com`, `cli.github.com`
+  and Azure Linux native repositories. Every run resolves release metadata over
+  the network; rate limits, missing asset digests and network failures stop it.
+  No npm/pip packages are installed; CFS language-package routing is unchanged.
+- For a **fresh** distro install, GnuPG on Windows (`gpg.exe` on PATH, or the
+  copy in `C:\Program Files\Git\usr\bin`). It verifies Microsoft's current image
+  checksum signature in an isolated temporary keyring, not a personal keyring.
+  The script never installs GnuPG itself. Existing distros do not require it.
 - Enough disk space for the WSL package and distribution. Downloaded images are
   temporary and removed after the installation attempt.
 
 ## What it changes
 
 The bootstrap downloads Microsoft's architecture-matched `.wsl` package **only if
-AzureLinux-4 is absent**, verifies its tracked SHA-256, and installs it without
+AzureLinux-4 is absent**, verifies the current signed Microsoft checksum, and installs it without
 launching interactive setup. It verifies WSL 2, Azure Linux 4.0, native architecture
 and systemd as PID 1 before provisioning. An existing WSL 1 distro is not converted
 automatically: review/back up first, then explicitly use
@@ -46,12 +54,15 @@ automatically: review/back up first, then explicitly use
 
 Inside **only AzureLinux-4**, it installs:
 
-- Native `azure-cli` from Azure Linux's existing Microsoft repository; `gh` from
-  the official GitHub CLI RPM repository using DNF5 with package signature checks.
+- Latest available native `azure-cli` from Azure Linux's existing Microsoft
+  repository; `gh` from the official GitHub CLI RPM repository using DNF5 with
+  refreshed metadata, targeted upgrades and package signature checks.
 - Git, jq, curl, unzip, tar/gzip, libicu and the account/session utilities.
-- Reviewed standalone Copilot CLI and Bicep binaries, SHA-256 checked **before**
-  extraction or execution. Bicep reuses `../tool-versions.env` and
-  `../releases.sha256`; Copilot/image pins are in `downloads.json`.
+- Latest stable standalone Copilot CLI and Bicep binaries from their official
+  GitHub `/releases/latest` endpoints, rejecting drafts/prereleases. The exact
+  architecture-matched release assets must have official SHA-256 digests.
+  Downloads are checked against those digests **before** extraction or execution.
+  No version/checksum pins or dev-container installation manifests are used.
 
 Both provisioning phases start with a clean Linux environment and native-only
 PATH, not inherited Windows tools or credentials. The selected Linux user's Azure
@@ -109,10 +120,12 @@ Missing/expired authentication returns helper status **20**, which Windows repor
 as a failed/pending step with the sign-in/resume command, not full completion.
 Core setup remains in place. Rerun the same command after resolving the issue.
 
-Reruns reuse the distro/user, reapply the reviewed standalone binary pins, and
-reconcile the named settings. They can therefore replace newer standalone binaries
-with the reviewed versions. They do not rebuild the distro. DNF resolves available
-native RPM versions rather than providing an immutable OS snapshot.
+Reruns reuse the distro/user, resolve current stable standalone versions, upgrade
+the named RPMs and reconcile settings. A newer prerelease/custom standalone
+installation can be replaced by the current stable release. Reruns do not rebuild
+the distro. This rolling setup is not an immutable OS snapshot. The dev-container's
+reviewed version/age policy remains unchanged; the WSL bootstrap intentionally
+uses latest stable without a seven-day delay, as requested.
 
 ## Weekly updates
 
@@ -146,31 +159,35 @@ immediately. Updates never automatically reboot. Inspect failures with
 with `systemctl cat dnf5-automatic.timer` if its effective schedule differs.
 
 DNF covers RPM packages, including Azure CLI and GitHub CLI. **It does not upgrade
-standalone Copilot or Bicep.** There is no additional updater/timer here; update
-their reviewed pins and rerun when needed. Any Copilot product-managed update
-behavior is separate from DNF and this bootstrap.
+standalone Copilot or Bicep.** There is no additional updater/timer here; rerun the
+bootstrap to resolve their latest stable releases. Copilot's own product-managed
+updates/cache are separate from DNF. The bootstrap's version check temporarily
+uses `COPILOT_AUTO_UPDATE=false` to inspect the installed binary's bundled version,
+not a newer user-cached package. It does not disable the user's normal Copilot
+auto-update settings.
 
-## Download review and safe checks
+## Download verification and safe checks
 
-The image hashes were taken from Microsoft's published
-`https://aka.ms/azurelinux-4.0-{x86_64,aarch64}-wsl-checksum` files on 2026-10-26.
-Both checksum signatures were checked in an isolated keyring with the official
-Azure Linux 4.0 RPM key (fingerprint
-`2BC9 4FFF 7015 A5F2 8F15 37AD 0CD9 FED3 3135 CE90`), retrieved from
-Microsoft's repository at commit `8a6c0b47dd8e117b1e04e5bd8afeb1d844f4decd`.
-Key identity is anchored to Microsoft's HTTPS repository, not an existing personal
-GPG trust database. Runtime uses the reviewed tracked hashes, not a freshly
-downloaded checksum as its own trust anchor.
+Fresh installation follows Microsoft's current
+[WSL checksum/signature procedure](https://github.com/microsoft/azurelinux/blob/4.0/docs/verify-wsl-signature-and-checksum.md).
+It downloads architecture-specific checksum/signature files from the official
+`https://aka.ms/azurelinux-4.0-{x86_64,aarch64}-wsl-checksum` and
+`...-wsl-checksum-signature` URLs. It retrieves the Azure Linux 4 signing key from
+Microsoft's `4.0` branch and requires its trusted identity:
+`2BC9 4FFF 7015 A5F2 8F15 37AD 0CD9 FED3 3135 CE90`.
+This fingerprint is a trust anchor, **not a version or checksum pin**. Key
+rotation fails closed until that identity is independently reviewed and updated.
+GPG must report a valid signature by this exact key before the manifest is parsed.
+Only the entry matching the current architecture's package is accepted. Then the
+current official `.wsl` package must match that signed SHA-256 before installation.
+Publishing races between the manifest/image fail closed; retry later.
 
-The official image URLs are mutable: a changed image fails the hash check rather
-than silently installing. Follow Microsoft's
-[WSL checksum/signature procedure](https://github.com/microsoft/azurelinux/blob/4.0/docs/verify-wsl-signature-and-checksum.md)
-before updating both architecture pins. Azure Linux 4's preview image is the
-intentional preview exception; standalone tools use stable releases older than
-seven days. Review the newest eligible stable releases and their official hashes,
-updating shared Bicep pins coherently with the dev-container build contract.
-Copilot 1.0.98 was published on 2026-10-14; its two hashes are the official GitHub
-release asset digests. No remote install script is piped to a shell.
+Standalone release metadata uses unauthenticated official GitHub HTTPS APIs and
+asset digests, not a checksum sourced from arbitrary user input. No GitHub token,
+Windows credential cache, authenticated download headers or remote install script
+is used. Linux downloads disable curl configuration-file loading as well as using
+the clean provisioning environment. Existing CLI credentials are used only by the separately requested
+Linux dotfiles step, never for distribution or binary downloads.
 
 Safe checks, from the repository root (PowerShell 7.4+ and Git Bash, or Bash on
 a separate Linux test machine):
@@ -180,12 +197,24 @@ pwsh -NoProfile -File .\.devcontainer\wsl\test-bootstrap.ps1
 & 'C:\Program Files\Git\bin\bash.exe' --noprofile --norc -c 'bash -n .devcontainer/wsl/provision.sh && bash -n .devcontainer/wsl/test-provision.sh && bash .devcontainer/wsl/test-provision.sh'
 ```
 
-These use temporary fixtures and mocked WSL, downloads and authentication:
-checksum rejection, existing/new distro orchestration, no default changes after
-core failure, WSL 1 rejection, auth-pending/resume, and idempotent configuration
-preserving unrelated settings/backups. They **do not** invoke WSL, install RPMs,
-authenticate, run the private installer, or prove real native provisioning.
-Actual `.wsl` installation, RPM resolution/signatures, binary compatibility and
-systemd operation still require a future explicitly authorized native x64/ARM64
-provisioning run. The full dev-container inventory, Docker/VS Code installation,
-Windows tasks, Azure resources and production hardening are out of scope.
+These use temporary fixtures and mocked WSL, release APIs, GPG and authentication:
+stable-release/digest/URL rejection, signer identity, image checksum and architecture
+matching, UTF-16 WSL output handling, Bash stdin dispatch, existing/new distro
+orchestration, no default changes after core failure, WSL 1 rejection,
+auth-pending/resume, and idempotent configuration preservation. They **do not**
+invoke WSL, install RPMs, authenticate or run the private installer.
+
+The unauthenticated official release API resolution for both architectures and
+actual Microsoft checksum signatures for both image architectures were also
+checked from Windows, using temporary keyrings. That verifies metadata/signatures,
+not installation or native binary compatibility.
+
+The initial live x64 run found and prompted fixes for WSL UTF-16 output and Bash
+stdin dispatch. It verified the previously selected standalone binaries, native
+CLIs and weekly timer, but was stopped before the required rerun when the user
+changed the requirement to latest stable. It does **not** validate this revised
+release-resolution implementation. A future authorized core run plus rerun must
+check effective tools/Bicep entry points, defaults, timer schedule and preservation
+of existing distros/settings. Fresh `.wsl` install, other architecture and dotfiles
+require separate live validation. The full dev-container inventory, Docker/VS Code
+installation, Windows tasks, Azure resources and production hardening are out of scope.

@@ -42,8 +42,8 @@ set_ini() {
 
 download() {
     local url=$1 target=$2 hash=$3
-    [[ "$hash" =~ ^[a-f0-9]{64}$ ]] || fail 'Missing reviewed binary checksum.'
-    curl --proto '=https' --proto-redir '=https' --fail --show-error --location \
+    [[ "$hash" =~ ^[a-f0-9]{64}$ ]] || fail 'Missing official binary checksum.'
+    curl --disable --proto '=https' --proto-redir '=https' --fail --show-error --location \
         --retry 3 --connect-timeout 30 --max-time 600 "$url" -o "$target"
     printf '%s  %s\n' "$hash" "$target" | sha256sum --check --strict -
 }
@@ -98,7 +98,9 @@ provision_system() {
     [[ "$bicep_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ &&
        "$copilot_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail 'Invalid stable binary version.'
     command -v dnf5 >/dev/null || fail 'DNF5 is required; this is not an Azure Linux 4 WSL image.'
-    dnf5 --setopt=gpgcheck=1 install -y azure-cli git jq curl unzip libicu tar gzip shadow-utils util-linux dnf5-plugin-automatic
+    local -a packages=(azure-cli git jq curl unzip libicu tar gzip shadow-utils util-linux dnf5-plugin-automatic)
+    dnf5 --refresh --setopt=gpgcheck=1 install -y "${packages[@]}"
+    dnf5 --setopt=gpgcheck=1 upgrade -y "${packages[@]}"
     if ! getent passwd "$user" >/dev/null; then
         useradd --create-home --shell /bin/bash "$user"
         printf 'Created %s with a locked password; set one yourself with passwd if needed.\n' "$user"
@@ -107,7 +109,7 @@ provision_system() {
     work=$(mktemp -d)
     trap "rm -rf -- '$work'" EXIT
     # Use the official RPM repository with mandatory package signature checking.
-    curl --proto '=https' --proto-redir '=https' --fail --show-error --location \
+    curl --disable --proto '=https' --proto-redir '=https' --fail --show-error --location \
         --retry 3 https://cli.github.com/packages/rpm/gh-cli.repo -o "$work/gh-cli.repo"
     [[ ! -L /etc/yum.repos.d/gh-cli.repo ]] || fail 'Refusing symlink repository configuration.'
     [[ ! -e /etc/yum.repos.d/gh-cli.repo ]] ||
@@ -115,6 +117,7 @@ provision_system() {
         fail 'Existing gh-cli.repo differs from the official file; review it manually.'
     install -m 0644 "$work/gh-cli.repo" /etc/yum.repos.d/gh-cli.repo
     dnf5 --setopt=gpgcheck=1 --setopt=gh-cli.gpgcheck=1 install -y gh
+    dnf5 --refresh --setopt=gpgcheck=1 --setopt=gh-cli.gpgcheck=1 upgrade -y gh
     download "https://github.com/Azure/bicep/releases/download/v${bicep_version}/bicep-linux-${arch}" \
         "$work/bicep" "$bicep_hash"
     download "https://github.com/github/copilot-cli/releases/download/v${copilot_version}/copilot-linux-${arch}.tar.gz" \
@@ -132,7 +135,7 @@ provision_system() {
     as_user /usr/bin/gh --version
     as_user /usr/local/bin/bicep --version
     as_user /usr/bin/az bicep version
-    as_user /usr/local/bin/copilot --version
+    as_user env COPILOT_AUTO_UPDATE=false /usr/local/bin/copilot --version
     printf 'Native tools and weekly DNF timer verified. No authentication performed.\n'
 }
 
@@ -172,4 +175,4 @@ main() {
     esac
 }
 
-if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then main "$@"; fi
+if [[ "${BASH_SOURCE[0]:-$0}" == "$0" ]]; then main "$@"; fi
